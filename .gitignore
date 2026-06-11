@@ -29,3 +29,6 @@ Thumbs.db
 
 # Reference art (large Grok videos) — images stay versioned
 AGENTIQ/*.mp4
+
+# Dev screenshots (curated copies live in docs/img)
+/agentiq-*.png
