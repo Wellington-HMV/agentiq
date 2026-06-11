@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual env / uv
+.venv/
+.uv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Tooling caches (cont.)
+.import_linter_cache/
+.playwright-mcp/
+
+# Runtime state (agentiq writes runs under the user home, not the repo)
+.wcs/
+.agentiq/
+
+# Reference art (large Grok videos) — images stay versioned
+AGENTIQ/*.mp4

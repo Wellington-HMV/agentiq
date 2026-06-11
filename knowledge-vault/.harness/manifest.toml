@@ -1,0 +1,6 @@
+schema_version = 1
+name = "well-corp-sw-knowledge"
+description = "Session knowledge for the well-corp-sw build: overview, architecture, conventions, status, learnings."
+include = ["notes/**/*.md"]
+exclude = [".obsidian/**"]
+entry_id = "frontmatter.id || relpath"

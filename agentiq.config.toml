@@ -1,0 +1,6 @@
+# agentiq config. Caps live spend and keeps autonomy safe-by-default.
+[cost]
+ceiling_usd = 1.0   # live runs (--live) stop at $1 (SDK max_budget_usd)
+
+[autonomy]
+default = "ask"     # decisions prompt (live) / abort headless; open up with allow rules

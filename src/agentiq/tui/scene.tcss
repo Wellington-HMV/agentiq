@@ -1,0 +1,18 @@
+/* agentiq TUI styles. Minimal, version-safe layout. */
+
+#scene {
+    height: 1fr;
+    width: 1fr;
+    padding: 1 2;
+}
+
+InspectOverlay {
+    align: center middle;
+}
+
+#inspect {
+    width: 70%;
+    height: auto;
+    padding: 1 2;
+    border: round white;
+}

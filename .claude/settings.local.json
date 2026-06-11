@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(defuddle parse *)",
+      "WebFetch(domain:docs.bmad-method.org)",
+      "Bash(python3 \"C:/Users/user/Projetos/well-corp-sw/_bmad/scripts/resolve_customization.py\" --skill \"C:/Users/user/Projetos/well-corp-sw/.claude/skills/bmad-create-ux-design\" --key workflow)",
+      "Bash(python \"C:/Users/user/Projetos/well-corp-sw/_bmad/scripts/resolve_customization.py\" --skill \"C:/Users/user/Projetos/well-corp-sw/.claude/skills/bmad-create-ux-design\" --key workflow)",
+      "PowerShell(Get-ChildItem *)"
+    ]
+  }
+}

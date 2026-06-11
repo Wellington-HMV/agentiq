@@ -1,0 +1,6 @@
+schema_version = 1
+name = "test-vault"
+description = "A fixture harness vault for tests"
+include = ["notes/**/*.md"]
+exclude = [".obsidian/**"]
+entry_id = "frontmatter.id || relpath"

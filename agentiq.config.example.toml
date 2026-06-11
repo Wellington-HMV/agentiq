@@ -1,0 +1,23 @@
+# Example per-project agentiq configuration.
+# Copy to `agentiq.config.toml` at your target project root. CLI flags override these.
+# All sections and keys are optional; omitted values fall back to the defaults
+# shown below. Unknown keys are rejected (config fails fast).
+
+[project]
+path = "."                       # directory the agents operate on (default ".")
+
+[vault]
+paths = []                       # harness-standard vault(s), e.g. ["../CSharp-Senior-Vault"]
+
+[autonomy]
+default = "ask"                  # fallback action: allow | deny | ask
+# Per-kind rules (first match wins, else `default`):
+# [[autonomy.rules]]
+# kind = "irreversible"          # the decision category
+# action = "ask"                 # allow | deny | ask
+
+[cost]
+# ceiling_usd = 5.0              # hard cap; fan-out halts on breach (story 4.4). Omit = no ceiling.
+
+[isolation]
+mode = "serialize"               # serialize | worktree  (worktree: story 5.5)

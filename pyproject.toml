@@ -1,0 +1,82 @@
+[project]
+name = "agentiq"
+version = "0.1.0"
+description = "Personal CLI/TUI orchestrator for Claude multi-agent work with legible spatial replay"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk",
+    "fastapi",
+    "pyyaml>=6.0.3",
+    "textual",
+    "uvicorn",
+    "websockets",
+]
+
+[project.scripts]
+agentiq = "agentiq.cli.app:main"
+# Legacy alias from the well-corp-sw era — same entrypoint, kept for muscle memory.
+wcs = "agentiq.cli.app:main"
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "ruff",
+    "ty",
+    "pytest",
+    "pytest-asyncio",
+    "import-linter",
+    "types-pyyaml>=6.0.12.20260518",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentiq"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["src", "tests"]
+# Only our code — BMad skill/scripts and planning artifacts are vendor/generated.
+extend-exclude = [
+    ".claude",
+    "_bmad",
+    "_bmad-output",
+    "design-artifacts",
+    "docs",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.importlinter]
+root_package = "agentiq"
+
+[[tool.importlinter.contracts]]
+name = "Core-side packages must not import the TUI (NFR17)"
+type = "forbidden"
+source_modules = [
+    "agentiq.core",
+    "agentiq.events",
+    "agentiq.agent",
+    "agentiq.vault",
+    "agentiq.policy",
+    "agentiq.cost",
+]
+forbidden_modules = [
+    "agentiq.tui",
+    "agentiq.web",
+]

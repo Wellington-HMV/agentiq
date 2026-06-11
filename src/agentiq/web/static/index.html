@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AGENTIQ — ferramenta de agentes</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" href="data:," />
+</head>
+<body>
+  <header id="topbar">
+    <div id="brand"><span class="bot">[▣▣]</span> AGENTIQ</div>
+    <div id="runmeta"></div>
+  </header>
+
+  <main>
+    <aside id="runs-panel">
+      <h2>Runs</h2>
+      <ul id="runs-list"><li class="hint">loading…</li></ul>
+    </aside>
+
+    <section id="stage">
+      <div class="hint" id="stage-hint">Pick a run ▸ &nbsp;(● LIVE = watch in real time)</div>
+      <canvas id="factory" hidden></canvas>
+
+      <div id="live-pill" hidden>● LIVE</div>
+
+      <div id="decision-card" class="card" hidden>
+        <h3>◆ DECISION</h3>
+        <p id="decision-prompt"></p>
+        <ul id="decision-options"></ul>
+        <div id="decision-hint"></div>
+      </div>
+
+      <div id="summary-card" class="card" hidden>
+        <h3>✓ RUN SUMMARY</h3>
+        <div id="summary-body"></div>
+      </div>
+
+      <div id="hud-bottom" hidden>
+        <div id="caption"></div>
+        <div id="ticker"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="keys">● tempo real — runs ativos entram como LIVE; runs antigos reproduzem sozinhos</footer>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
