@@ -1,7 +1,11 @@
 """FastAPI app serving the AGENTIQ factory front-end and the run-store API.
 
-Endpoints (all read-only over the run store — phase W0):
+Endpoints:
 
+- ``POST /api/runs``               — open a demand: {goal, project, live}. The
+  orchestration runs as a background task in this process, aimed at the given
+  repository (whose own agentiq.config.toml governs policy/ceiling/vault);
+  returns {run_id} immediately so the browser can attach live.
 - ``GET /``                        — the factory single-page app.
 - ``GET /api/runs``                — run listing (mirrors ``agentiq runs``).
 - ``GET /api/runs/{id}/events``    — the full validated event log as JSON; the
@@ -48,6 +52,31 @@ class DecisionAnswer(BaseModel):
     choice: str = ""
 
 
+class NewDemand(BaseModel):
+    """POST body for opening a demand: a goal aimed at a target repository."""
+
+    goal: str
+    project: str = "."  # the repository the agents will work on
+    live: bool = False  # real Claude agents (CLI login) vs offline deterministic
+
+
+def _demand_strategy(live: bool, settings, project: Path):  # noqa: ANN001, ANN202
+    """Mirror of the CLI's strategy selection, scoped to the target repo."""
+    if live:
+        from agentiq.agent.claude_strategy import ClaudeStrategy
+        from agentiq.policy.safety import SafetyGuard
+
+        guard = SafetyGuard(
+            str(project),
+            vault_paths=settings.vault.paths,
+            denied_ops=settings.safety.denied_ops,
+        )
+        return ClaudeStrategy(cost_ceiling_usd=settings.cost.ceiling_usd, safety=guard)
+    from agentiq.core.orchestrator import DeterministicStrategy
+
+    return DeterministicStrategy()
+
+
 def create_app(runs_root: str | Path | None = None) -> FastAPI:
     """Build the web app. ``runs_root=None`` uses the default (+legacy) store."""
     app = FastAPI(title="AGENTIQ", docs_url=None, redoc_url=None)
@@ -75,6 +104,67 @@ def create_app(runs_root: str | Path | None = None) -> FastAPI:
         if not summary_path.is_file():
             raise HTTPException(status_code=404, detail="no summary (run not final?)")
         return json.loads(summary_path.read_text(encoding="utf-8"))
+
+    # Demands launched from the browser run as background tasks in this
+    # process; keep strong references so the event loop never drops them.
+    app.state.demand_tasks = set()
+
+    @app.post("/api/runs")
+    async def api_open_demand(body: NewDemand) -> dict[str, str]:
+        goal = body.goal.strip()
+        if not goal:
+            raise HTTPException(status_code=400, detail="goal must not be empty")
+        # Trivial localhost stat; not worth a thread hop (ASYNC240).
+        project = Path(body.project or ".").expanduser()  # noqa: ASYNC240
+        if not project.is_dir():  # noqa: ASYNC240
+            raise HTTPException(
+                status_code=400, detail=f"project directory not found: {project}"
+            )
+
+        from agentiq.config.settings import Settings, find_config, load_config
+        from agentiq.core.decision_bridge import FileDecisionResolver
+        from agentiq.core.ids import new_ulid
+        from agentiq.core.orchestrator import run_orchestration
+        from agentiq.core.run import default_runs_root
+        from agentiq.policy.policy import PolicyResolver
+        from agentiq.vault.harness import HarnessVaultProvider
+
+        # The TARGET repo's config governs the run (policy, ceiling, vault).
+        cfg_path = find_config(project)
+        try:
+            settings = load_config(cfg_path) if cfg_path is not None else Settings()
+        except Exception as e:  # ConfigError: surface it to the form
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+        vault = None
+        if settings.vault.paths:
+            vault_path = Path(settings.vault.paths[0])
+            if not vault_path.is_absolute():
+                vault_path = project / vault_path
+            vault = HarnessVaultProvider(vault_path)
+
+        run_id = new_ulid()
+        store = Path(runs_root) if runs_root is not None else default_runs_root()
+        resolver = PolicyResolver(
+            settings.autonomy, FileDecisionResolver(store / run_id)
+        )
+        strategy = _demand_strategy(body.live, settings, project)
+
+        task = asyncio.ensure_future(
+            run_orchestration(
+                goal,
+                project,
+                strategy=strategy,
+                vault=vault,
+                runs_root=runs_root,
+                run_id=run_id,
+                resolver=resolver,
+                isolation_mode=settings.isolation.mode,
+            )
+        )
+        app.state.demand_tasks.add(task)
+        task.add_done_callback(app.state.demand_tasks.discard)
+        return {"run_id": run_id}
 
     @app.get("/api/runs/{run_id}/decision")
     def api_decision(run_id: str) -> dict[str, object]:

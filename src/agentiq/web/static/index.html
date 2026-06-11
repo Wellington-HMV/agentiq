@@ -15,6 +15,16 @@
 
   <main>
     <aside id="runs-panel">
+      <button id="btn-new-demand">+ nova demanda</button>
+      <form id="demand-form" hidden>
+        <textarea id="demand-goal" rows="3" placeholder="O que precisa ser feito?"></textarea>
+        <input id="demand-project" type="text" placeholder="repositório alvo (ex: C:\projetos\meu-app)" />
+        <label id="demand-live-label">
+          <input type="checkbox" id="demand-live" /> agentes reais (Claude)
+        </label>
+        <button type="submit" id="demand-submit">▶ iniciar demanda</button>
+        <div id="demand-error"></div>
+      </form>
       <h2>Runs</h2>
       <ul id="runs-list"><li class="hint">loading…</li></ul>
     </aside>

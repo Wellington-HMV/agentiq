@@ -334,6 +334,53 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// --- opening a demand from the browser ---------------------------------------------
+
+$("#btn-new-demand").addEventListener("click", () => {
+  const form = $("#demand-form");
+  form.hidden = !form.hidden;
+  if (!form.hidden) {
+    $("#demand-project").value =
+      localStorage.getItem("agentiq.project") ?? "";
+    $("#demand-goal").focus();
+  }
+});
+
+$("#demand-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const goal = $("#demand-goal").value.trim();
+  const project = $("#demand-project").value.trim() || ".";
+  const live = $("#demand-live").checked;
+  const error = $("#demand-error");
+  if (!goal) {
+    error.textContent = "descreva a demanda primeiro";
+    return;
+  }
+  $("#demand-submit").disabled = true;
+  error.textContent = "";
+  try {
+    const res = await fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goal, project, live }),
+    });
+    if (!res.ok) {
+      const detail = (await res.json()).detail ?? res.statusText;
+      error.textContent = detail;
+      return;
+    }
+    const { run_id } = await res.json();
+    localStorage.setItem("agentiq.project", project);
+    $("#demand-goal").value = "";
+    $("#demand-form").hidden = true;
+    openLive(run_id); // attach to the newborn run immediately
+  } catch (err) {
+    error.textContent = String(err);
+  } finally {
+    $("#demand-submit").disabled = false;
+  }
+});
+
 // --- render loop -------------------------------------------------------------------
 
 function resize() {

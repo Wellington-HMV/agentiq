@@ -140,6 +140,50 @@ def test_decision_endpoints_roundtrip(tmp_path: Path) -> None:
     }
 
 
+def test_open_demand_runs_in_background(tmp_path: Path) -> None:
+    import time
+
+    store = tmp_path / "store"
+    project = tmp_path / "repo"
+    project.mkdir()
+    client = TestClient(create_app(runs_root=store))
+
+    res = client.post(
+        "/api/runs", json={"goal": "build the thing", "project": str(project)}
+    )
+    assert res.status_code == 200
+    run_id = res.json()["run_id"]
+
+    # The deterministic orchestration finishes quickly in the background;
+    # poll the API until its terminal event lands in the store.
+    deadline = time.time() + 10
+    types: list[str] = []
+    while time.time() < deadline:
+        events_res = client.get(f"/api/runs/{run_id}/events")
+        if events_res.status_code == 200:
+            types = [e["type"] for e in events_res.json()]
+            if "run.completed" in types:
+                break
+        time.sleep(0.1)
+    assert types[0] == "run.started"
+    assert "run.completed" in types
+    # The demand was aimed at the target repository.
+    started = client.get(f"/api/runs/{run_id}/events").json()[0]
+    assert started["payload"]["project"] == str(project.resolve())
+
+
+def test_open_demand_validates_input(tmp_path: Path) -> None:
+    client = TestClient(create_app(runs_root=tmp_path))
+    assert (
+        client.post("/api/runs", json={"goal": "  ", "project": "."}).status_code == 400
+    )
+    res = client.post(
+        "/api/runs", json={"goal": "g", "project": str(tmp_path / "nope")}
+    )
+    assert res.status_code == 400
+    assert "not found" in res.json()["detail"]
+
+
 def test_ws_live_unknown_run_closes(tmp_path: Path) -> None:
     client = TestClient(create_app(runs_root=tmp_path))
     with client.websocket_connect("/ws/live/NOPE") as ws:
