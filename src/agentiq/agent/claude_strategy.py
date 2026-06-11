@@ -93,8 +93,18 @@ class ClaudeStrategy:
         self._safety = safety
         self._halted = False
 
-    def _build_options(self, can_use_tool: Any | None) -> Any:
+    def _build_options(self, can_use_tool: Any | None, project: Path | None) -> Any:
         kwargs: dict[str, Any] = {"system_prompt": _SYSTEM_PROMPT}
+        if project is not None:
+            # Agents work IN the target repository, regardless of where the
+            # orchestrating process (CLI or web server) was started from.
+            kwargs["cwd"] = str(project)
+        # Headless sessions silently deny file edits in the default permission
+        # mode — and the CLI does NOT consult can_use_tool for a subagent's
+        # nested tool calls (observed live: builders "finish" without writing).
+        # acceptEdits lets agents actually edit inside cwd; everything riskier
+        # still goes through disallowed_tools / can_use_tool / max_budget_usd.
+        kwargs["permission_mode"] = "acceptEdits"
         if can_use_tool is not None:
             # Scope + decision gate. Best-effort: the CLI only consults it when it
             # would otherwise prompt, so a session with pre-approved tools may skip
@@ -157,7 +167,8 @@ class ClaudeStrategy:
         # can_use_tool callback is set; a plain string is fine otherwise.
         prompt: Any = _prompt_stream(goal) if cb is not None else goal
         try:
-            stream = self._query(prompt=prompt, options=self._build_options(cb))
+            options = self._build_options(cb, project)
+            stream = self._query(prompt=prompt, options=options)
             async for message in stream:
                 result = await self._handle(message, adapter)
                 if result is not None:
@@ -185,7 +196,13 @@ class ClaudeStrategy:
                 # halt further fan-out if the ceiling is crossed (NFR12).
                 if apply_usage(self._meter, adapter, _PARENT_ID, float(cost)):
                     self._halted = True
-            return "failed" if getattr(message, "is_error", False) else "completed"
+            if getattr(message, "is_error", False):
+                # Keep the SDK's error text in the log — a bare "failed" run is
+                # undiagnosable after the fact.
+                cause = str(getattr(message, "result", None) or "sdk error")
+                adapter.fail(_PARENT_ID, cause=cause[:500])
+                return "failed"
+            return "completed"
         return None
 
     async def _handle_assistant(self, message: Any, adapter: AgentAdapter) -> None:

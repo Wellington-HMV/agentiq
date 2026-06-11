@@ -246,15 +246,16 @@ async def test_permission_denies_when_unresolvable(tmp_path: Path) -> None:
 def test_build_options_sets_budget_and_callback(tmp_path: Path) -> None:
     strat = ClaudeStrategy(cost_ceiling_usd=2.0, safety=SafetyGuard(tmp_path))
     adapter, writer, _log = _adapter(tmp_path)
-    opts = strat._build_options(strat._permission_cb(adapter, _Proceed()))
+    opts = strat._build_options(strat._permission_cb(adapter, _Proceed()), tmp_path)
     writer.close()
     assert opts.max_budget_usd == 2.0  # in-flight spend cap handed to the SDK
     assert opts.can_use_tool is not None  # pre-execution tool gate wired
+    assert opts.cwd == str(tmp_path)  # agents work in the TARGET repo
 
 
 def test_build_options_hard_blocks_denied_ops(tmp_path: Path) -> None:
     # denied_ops -> disallowed_tools: the CLI hard-blocks these regardless of
     # whether it consults can_use_tool (authoritative prevention).
     strat = ClaudeStrategy(safety=SafetyGuard(tmp_path, denied_ops=["Bash", "Write"]))
-    opts = strat._build_options(None)
+    opts = strat._build_options(None, tmp_path)
     assert opts.disallowed_tools == ["Bash", "Write"]

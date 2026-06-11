@@ -30,6 +30,26 @@ uv run lint-imports
 uv run pytest
 ```
 
+## Interface Web (Fábrica)
+
+```bash
+uv run agentiq web                # sobe a fábrica em http://127.0.0.1:8642/ e abre o browser
+uv run agentiq web --port 9000    # porta customizada
+uv run agentiq web --no-browser   # não abre o browser automaticamente
+```
+
+- **Nova demanda**: clique em `+ nova demanda`, descreva o objetivo, informe o
+  repositório alvo (vazio = diretório atual) e marque `agentes reais (Claude)`
+  para usar agentes de verdade — desmarcado, roda a estratégia determinística
+  offline. `▶ iniciar demanda` cria o run e já abre a visão ao vivo.
+- **Modo LIVE**: runs em execução são acompanhados em tempo real via WebSocket —
+  o pill `● LIVE · N events` indica o streaming; ao terminar vira `■ finished`.
+  Clicar num run `running`/`pending` na sidebar também entra em LIVE.
+- **Modo cinema**: clicar num run finalizado reproduz o log de eventos em ritmo
+  natural (`▶ reprise`). `Espaço` pausa/retoma.
+- **Decisões pendentes**: em LIVE, um card `◆ DECISION` aparece com as opções.
+  Responda clicando numa opção, com `1`–`9`, ou `Enter` para o default.
+
 ## Architecture (one-liner)
 
 An event-sourced core: the headless orchestrator is the sole producer of an
