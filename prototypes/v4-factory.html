@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AGENTIQ · v4 factory prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0d0f14; --bg2:#12151c; --panel:#161a22; --panel2:#1d222c;
+    --gold:#e0b352; --gold-deep:#d97706; --gold-soft:#f5c969;
+    --ink:#f3ede0; --muted:#8a92a3; --line:#2a3140;
+    --info:#41c96a; --ops:#3fa3f5; --exec:#f5963f; --danger:#ef4444;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:Inter,system-ui,sans-serif; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #stage{position:fixed;inset:0;display:block}
+
+  /* ---- HUD ---- */
+  .hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .topbar{
+    position:absolute;top:0;left:0;right:0;height:60px;
+    display:flex;align-items:center;gap:16px;padding:0 20px;
+    background:linear-gradient(180deg,rgba(13,15,20,.92),rgba(13,15,20,0));
+  }
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand svg{filter:drop-shadow(0 2px 6px rgba(224,179,82,.35))}
+  .brand .wordmark{font-family:"Space Grotesk",sans-serif;font-weight:700;
+    font-size:19px;letter-spacing:.14em;color:var(--gold-soft)}
+  .brand .sub{font-size:10px;letter-spacing:.32em;color:var(--muted);
+    text-transform:uppercase;margin-top:1px}
+  .spacer{flex:1}
+  .pill{
+    display:flex;align-items:center;gap:7px;height:30px;padding:0 13px;
+    border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;
+    background:var(--panel);border:1px solid var(--line);
+    font-variant-numeric:tabular-nums;
+  }
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--info);
+    box-shadow:0 0 8px var(--info);animation:blip 1.4s ease-in-out infinite}
+  .pill.cost{color:var(--gold-soft);border-color:rgba(224,179,82,.4)}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .legend{
+    position:absolute;left:20px;bottom:18px;display:flex;flex-direction:column;gap:7px;
+    background:rgba(18,21,28,.72);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    font-size:12px;color:var(--muted);
+  }
+  .legend b{color:var(--ink);font-weight:600;letter-spacing:.18em;font-size:10px;
+    text-transform:uppercase;display:block;margin-bottom:3px}
+  .legend .row{display:flex;align-items:center;gap:8px}
+  .legend .sw{width:11px;height:11px;border-radius:3px}
+
+  .toolbar{
+    position:absolute;right:20px;bottom:18px;display:flex;gap:8px;pointer-events:auto;
+  }
+  .btn{
+    height:34px;padding:0 15px;border-radius:9px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-family:Inter,sans-serif;font-size:12.5px;font-weight:600;letter-spacing:.02em;
+    transition:background .18s ease,border-color .18s ease,transform .1s ease;
+  }
+  .btn:hover{background:var(--panel2);border-color:var(--gold)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(180deg,var(--gold-soft),var(--gold-deep));
+    color:#1a1206;border-color:var(--gold-soft)}
+
+  /* ---- decision card ---- */
+  .decision{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);
+    width:min(420px,90vw);pointer-events:auto;opacity:0;visibility:hidden;
+    transition:opacity .22s ease,transform .22s ease,visibility .22s;
+    background:linear-gradient(180deg,#221c0e,#171a22);
+    border:1px solid var(--gold);border-radius:16px;padding:20px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6),0 0 0 1px rgba(224,179,82,.15),
+      0 0 40px rgba(224,179,82,.18);
+  }
+  .decision.show{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+  .decision .tag{display:flex;align-items:center;gap:8px;color:var(--gold-soft);
+    font-family:"Space Grotesk",sans-serif;font-weight:700;letter-spacing:.18em;
+    font-size:12px;text-transform:uppercase}
+  .decision h3{font-size:16px;margin:11px 0 15px;font-weight:600;line-height:1.4}
+  .decision .opt{
+    display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;margin-bottom:8px;cursor:pointer;color:var(--ink);
+    font-family:Inter,sans-serif;font-size:13.5px;transition:all .15s ease}
+  .decision .opt:hover{border-color:var(--gold);background:var(--panel2);transform:translateX(2px)}
+  .decision .opt kbd{
+    width:22px;height:22px;display:grid;place-items:center;border-radius:6px;
+    background:var(--bg2);border:1px solid var(--line);font-size:11px;
+    font-family:"Space Grotesk",monospace;color:var(--muted)}
+  .decision .opt.default kbd{border-color:var(--gold);color:var(--gold-soft)}
+
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div class="hud">
+  <div class="topbar">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
+        <rect x="14" y="20" width="36" height="28" rx="11" fill="#e0b352"/>
+        <rect x="20" y="27" width="9" height="14" rx="4" fill="#161a22"/>
+        <rect x="35" y="27" width="9" height="14" rx="4" fill="#161a22"/>
+        <rect x="9" y="28" width="6" height="12" rx="3" fill="#e0b352"/>
+        <rect x="49" y="28" width="6" height="12" rx="3" fill="#e0b352"/>
+        <rect x="30" y="8" width="4" height="11" rx="2" fill="#e0b352"/>
+        <circle cx="32" cy="7" r="4" fill="#e0b352"/>
+      </svg>
+      <div>
+        <div class="wordmark">AGENTIQ</div>
+        <div class="sub">ferramenta de agentes</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="pill"><span class="dot"></span><span id="liveTxt">LIVE · 0 events</span></div>
+    <div class="pill cost"><span id="costTxt">$0.00</span> / $1.00</div>
+  </div>
+
+  <div class="legend">
+    <b>estado dos olhos</b>
+    <div class="row"><span class="sw" style="background:var(--info)"></span> ◉ lendo vault</div>
+    <div class="row"><span class="sw" style="background:var(--gold)"></span> ⚙ pensando</div>
+    <div class="row"><span class="sw" style="background:#7ee0a0"></span> ✓ pronto</div>
+    <div class="row"><span class="sw" style="background:var(--danger)"></span> ✕ falhou</div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="btnSiren">⚠ simular falha</button>
+    <button class="btn" id="btnDecision">◆ decisão</button>
+    <button class="btn primary" id="btnDelegate">➤ delegar</button>
+  </div>
+
+  <div class="decision" id="decision">
+    <div class="tag">◆ decision · pausando o mundo</div>
+    <h3>Qual gateway de pagamento o módulo deve integrar?</h3>
+    <button class="opt default" data-k="1"><kbd>1</kbd> Stripe — melhor DX, default</button>
+    <button class="opt" data-k="2"><kbd>2</kbd> Adyen — cobertura global</button>
+    <button class="opt" data-k="3"><kbd>3</kbd> Mercado Pago — foco BR</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const cv = document.getElementById("stage");
+  const ctx = cv.getContext("2d");
+  const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
+  let W=0,H=0,DPR=1;
+
+  function resize(){
+    DPR = Math.min(devicePixelRatio||1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W*DPR; cv.height = H*DPR;
+    cv.style.width=W+"px"; cv.style.height=H+"px";
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  addEventListener("resize", resize); resize();
+
+  // ---- palette ----
+  const C = {
+    info:"#41c96a", ops:"#3fa3f5", exec:"#f5963f",
+    gold:"#e0b352", goldSoft:"#f5c969", goldDeep:"#d97706",
+    danger:"#ef4444", ok:"#7ee0a0", steel:"#5a6473", steelD:"#3a4250",
+    ink:"#f3ede0", floor:"#161b24", floor2:"#10141b"
+  };
+
+  // ---- world model (demo state, would be a reducer in product) ----
+  const center = () => ({x:W/2, y:H*0.54});
+
+  const zones = [
+    {key:"INFO", color:C.info, ang:-Math.PI/2,      r:0.30, label:"INFO"},
+    {key:"OPS",  color:C.ops,  ang:Math.PI*0.78,    r:0.30, label:"OPS"},
+    {key:"EXEC", color:C.exec, ang:Math.PI*0.22,    r:0.30, label:"EXEC"},
+  ];
+
+  // robots: one leader per zone + workers; plus MAIN on podium
+  const STATES = ["read","think","done","fail"];
+  function mkRobot(zone, lead, idx){
+    return { zone, lead, idx, state:"think",
+      bob:Math.random()*6.28, blink:Math.random()*4, eye:1 };
+  }
+  let robots = [];
+  function seed(){
+    robots = [{zone:null, lead:true, main:true, state:"think", bob:0, blink:0, eye:1}];
+    zones.forEach(z=>{
+      robots.push(mkRobot(z.key, true, 0));
+      const n = 3 + (z.key==="EXEC"?2:1);
+      for(let i=0;i<n;i++) robots.push(mkRobot(z.key, false, i+1));
+    });
+  }
+  seed();
+
+  // belts (one per zone, feeding from bottom edges)
+  const belts = zones.map((z,i)=>({zone:z.key,color:z.color,side:i}));
+
+  // particles (dust)
+  const dust = [];
+  function puff(x,y,col){
+    if(reduce) return;
+    for(let i=0;i<5;i++) dust.push({x,y,vx:(Math.random()-.5)*.5,
+      vy:-Math.random()*.6-.2,life:1,col});
+  }
+
+  // demand arrows (transient)
+  const arrows = [];
+  function delegate(){
+    const c=center();
+    const z = zones[Math.floor(Math.random()*zones.length)];
+    const p = zonePos(z, 0.62);
+    arrows.push({x0:c.x,y0:c.y-20,x1:p.x,y1:p.y,col:z.color,t:0});
+    bumpLive(3);
+  }
+
+  // siren state per zone
+  let siren = null; // {zone, t}
+  function fireSiren(){
+    const z = zones[Math.floor(Math.random()*zones.length)];
+    siren = {zone:z.key, t:0};
+    // mark one worker failed
+    const w = robots.find(r=>r.zone===z.key && !r.lead);
+    if(w){ w.state="fail"; puff(0,0,C.danger); }
+    bumpLive(1);
+  }
+
+  // live counters
+  let events=0, cost=0;
+  function bumpLive(n){ events+=n; cost=Math.min(1, cost + n*0.013);
+    document.getElementById("liveTxt").textContent = `LIVE · ${events} events`;
+    document.getElementById("costTxt").textContent = "$"+cost.toFixed(2);
+  }
+
+  // ---- geometry helpers ----
+  function zonePos(z, frac){
+    const c=center(); const R=Math.min(W,H)*z.r*(frac??1);
+    return {x:c.x+Math.cos(z.ang)*R, y:c.y+Math.sin(z.ang)*R*0.82};
+  }
+  function zoneByKey(k){ return zones.find(z=>z.key===k); }
+
+  // ---- drawing ----
+  function drawFloor(){
+    // base
+    const g=ctx.createRadialGradient(W/2,H*0.5,80, W/2,H*0.5, Math.max(W,H)*0.75);
+    g.addColorStop(0,C.floor); g.addColorStop(1,C.floor2);
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // grid
+    ctx.strokeStyle="rgba(120,140,170,.05)"; ctx.lineWidth=1;
+    const s=46;
+    for(let x=(W/2)%s;x<W;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=(H/2)%s;y<H;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  }
+
+  function fillZone(z){
+    const c=center(); const R=Math.min(W,H)*z.r;
+    const p=zonePos(z,1);
+    // translucent wedge polygon between center and zone hub
+    const perp=z.ang+Math.PI/2; const wd=R*0.62;
+    const ax=c.x+Math.cos(perp)*wd, ay=c.y+Math.sin(perp)*wd*0.82;
+    const bx=c.x-Math.cos(perp)*wd, by=c.y-Math.sin(perp)*wd*0.82;
+    const ex=p.x+Math.cos(perp)*wd*0.7, ey=p.y+Math.sin(perp)*wd*0.82*0.7;
+    const fx=p.x-Math.cos(perp)*wd*0.7, fy=p.y-Math.sin(perp)*wd*0.82*0.7;
+    ctx.beginPath();
+    ctx.moveTo(ax,ay);ctx.lineTo(ex,ey);ctx.lineTo(fx,fy);ctx.lineTo(bx,by);ctx.closePath();
+    ctx.fillStyle=hexA(z.color,.10); ctx.fill();
+    ctx.strokeStyle=hexA(z.color,.55); ctx.lineWidth=2;
+    ctx.setLineDash([10,7]); ctx.lineDashOffset=-T*22; ctx.stroke(); ctx.setLineDash([]);
+    // hub glow
+    ctx.beginPath(); ctx.ellipse(p.x,p.y,46,30,0,0,7);
+    ctx.fillStyle=hexA(z.color,.14); ctx.fill();
+    ctx.strokeStyle=hexA(z.color,.5); ctx.lineWidth=1.5; ctx.stroke();
+    // label
+    ctx.font='700 15px "Space Grotesk",sans-serif';
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle=z.color; ctx.shadowColor=z.color; ctx.shadowBlur=12;
+    ctx.fillText(z.label, p.x, p.y-52); ctx.shadowBlur=0;
+  }
+
+  function drawPodium(){
+    const c=center();
+    // shadow
+    ctx.beginPath(); ctx.ellipse(c.x,c.y+34,86,30,0,0,7);
+    ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fill();
+    // tiers
+    for(let i=2;i>=0;i--){
+      const rx=70-i*12, ry=24-i*4, yy=c.y+i*7;
+      ctx.beginPath(); ctx.ellipse(c.x,yy,rx,ry,0,0,7);
+      ctx.fillStyle=i%2?C.steelD:C.steel; ctx.fill();
+      ctx.strokeStyle=hexA(C.gold,.6); ctx.lineWidth=1.5; ctx.stroke();
+    }
+    // gold ring
+    ctx.beginPath(); ctx.ellipse(c.x,c.y-6,58,19,0,0,7);
+    ctx.strokeStyle=C.gold; ctx.lineWidth=3; ctx.shadowColor=C.gold;
+    ctx.shadowBlur=14; ctx.stroke(); ctx.shadowBlur=0;
+    // MAIN label
+    ctx.font='700 16px "Space Grotesk",sans-serif'; ctx.textAlign="center";
+    ctx.fillStyle=C.goldSoft; ctx.shadowColor=C.gold; ctx.shadowBlur=10;
+    ctx.fillText("MAIN", c.x, c.y-78); ctx.shadowBlur=0;
+  }
+
+  function drawBelt(b){
+    const z=zoneByKey(b.zone);
+    // belt runs along bottom toward zone hub from screen edge
+    const p=zonePos(z,1.34);
+    const ex = b.side===0 ? W*0.5 : (b.side===1? W*0.14 : W*0.86);
+    const ey = H*0.94;
+    const sx=p.x, sy=p.y+30;
+    const dx=ex-sx, dy=ey-sy, len=Math.hypot(dx,dy), ux=dx/len, uy=dy/len;
+    const nx=-uy, ny=ux, hw=15;
+    // belt body
+    ctx.beginPath();
+    ctx.moveTo(sx+nx*hw,sy+ny*hw); ctx.lineTo(ex+nx*hw,ey+ny*hw);
+    ctx.lineTo(ex-nx*hw,ey-ny*hw); ctx.lineTo(sx-nx*hw,sy-ny*hw); ctx.closePath();
+    ctx.fillStyle="#22272f"; ctx.fill();
+    ctx.strokeStyle=hexA(z.color,.5); ctx.lineWidth=2; ctx.stroke();
+    // tread marks (moving)
+    ctx.save(); ctx.beginPath();
+    ctx.moveTo(sx+nx*hw,sy+ny*hw); ctx.lineTo(ex+nx*hw,ey+ny*hw);
+    ctx.lineTo(ex-nx*hw,ey-ny*hw); ctx.lineTo(sx-nx*hw,sy-ny*hw); ctx.closePath(); ctx.clip();
+    ctx.strokeStyle="rgba(255,255,255,.07)"; ctx.lineWidth=3;
+    const step=20, off=(T*60)%step;
+    for(let d=-step;d<len+step;d+=step){
+      const px=ex-ux*(d+off), py=ey-uy*(d+off);
+      ctx.beginPath(); ctx.moveTo(px+nx*hw,py+ny*hw); ctx.lineTo(px-nx*hw,py-ny*hw); ctx.stroke();
+    }
+    ctx.restore();
+    // gears at both ends
+    drawGear(sx,sy,13,z.color,T*2.4);
+    drawGear(ex,ey,16,z.color,-T*2.0);
+    // crate riding the belt
+    const cf=(T*0.18)%1, cx=ex-ux*(len*cf), cyy=ey-uy*(len*cf);
+    drawCrate(cx,cyy,z.color);
+  }
+
+  function drawGear(x,y,r,col,rot){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+    ctx.beginPath();
+    const teeth=8;
+    for(let i=0;i<teeth*2;i++){
+      const a=i/(teeth*2)*Math.PI*2, rr=i%2?r:r*0.72;
+      ctx[i?"lineTo":"moveTo"](Math.cos(a)*rr, Math.sin(a)*rr);
+    }
+    ctx.closePath();
+    ctx.fillStyle="#2b313b"; ctx.fill();
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.shadowColor=col; ctx.shadowBlur=8; ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(0,0,r*0.34,0,7); ctx.fillStyle=col; ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCrate(x,y,col){
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle="#7a5a2a"; ctx.strokeStyle=C.gold; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.rect(-11,-13,22,18); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-11,-4);ctx.lineTo(11,-4);
+    ctx.moveTo(0,-13);ctx.lineTo(0,5); ctx.strokeStyle=hexA(C.gold,.6); ctx.stroke();
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(0,-4,2.4,0,7); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTank(x,y,col,phase){
+    const w=26,h=58;
+    ctx.save(); ctx.translate(x,y);
+    // glass
+    ctx.fillStyle="rgba(40,48,60,.55)";
+    rr(-w/2,-h,w,h,8); ctx.fill();
+    // liquid
+    ctx.save(); rr(-w/2+3,-h+3,w-6,h-6,6); ctx.clip();
+    ctx.fillStyle=hexA(col,.5); ctx.fillRect(-w/2,-h*0.55,w,h);
+    // bubbles
+    for(let i=0;i<3;i++){
+      const by=((T*30+i*22+phase)% (h*0.5));
+      ctx.beginPath(); ctx.arc(-w/4+i*7, -by, 2.2,0,7);
+      ctx.fillStyle=hexA(col,.8); ctx.fill();
+    }
+    ctx.restore();
+    ctx.strokeStyle=hexA(col,.7); ctx.lineWidth=2; rr(-w/2,-h,w,h,8); ctx.stroke();
+    // caps
+    ctx.fillStyle=C.steelD; rr(-w/2-3,-h-7,w+6,9,3); ctx.fill();
+    rr(-w/2-3,-4,w+6,9,3); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawRobot(r){
+    const p = r.main ? {x:center().x, y:center().y-30} : robotSlot(r);
+    const bob = reduce?0:Math.sin(T*2 + r.bob)*3;
+    const x=p.x, y=p.y+bob;
+    const scale = r.main?1.25 : (r.lead?1.0:0.62);
+    const col = stateColor(r.state);
+    ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale);
+    // ground shadow
+    ctx.beginPath(); ctx.ellipse(0,26,18,6,0,0,7);
+    ctx.fillStyle="rgba(0,0,0,.4)"; ctx.fill();
+    // legs
+    ctx.fillStyle=C.steelD; rr(-9,12,7,12,3); ctx.fill(); rr(2,12,7,12,3); ctx.fill();
+    ctx.fillStyle=C.gold; rr(-9,21,7,4,2); ctx.fill(); rr(2,21,7,4,2); ctx.fill();
+    // body
+    ctx.fillStyle=C.steel; rr(-13,-2,26,18,7); ctx.fill();
+    ctx.strokeStyle=hexA(C.gold,.7); ctx.lineWidth=1.5; rr(-13,-2,26,18,7); ctx.stroke();
+    ctx.fillStyle=C.gold; ctx.beginPath(); ctx.arc(0,7,3.4,0,7); ctx.fill();
+    // arms
+    ctx.fillStyle=C.steelD; rr(-18,0,5,12,2.5); ctx.fill(); rr(13,0,5,12,2.5); ctx.fill();
+    // head
+    ctx.fillStyle=C.steel; rr(-15,-22,30,22,9); ctx.fill();
+    ctx.strokeStyle=hexA(C.gold,.8); ctx.lineWidth=2; rr(-15,-22,30,22,9); ctx.stroke();
+    // ears
+    ctx.fillStyle=C.gold; rr(-19,-16,5,9,2.5); ctx.fill(); rr(14,-16,5,9,2.5); ctx.fill();
+    // antenna
+    ctx.strokeStyle=C.gold; ctx.lineWidth=2; ctx.beginPath();
+    ctx.moveTo(0,-22); ctx.lineTo(0,-30); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,-32,3,0,7); ctx.fillStyle=C.gold; ctx.fill();
+    // face screen
+    ctx.fillStyle="#0c0f15"; rr(-12,-19,24,16,6); ctx.fill();
+    // eyes (state-colored)
+    const eo = r.eye; // 0..1 blink
+    ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=9;
+    drawEye(-6,-11,col,r.state,eo); drawEye(6,-11,col,r.state,eo);
+    ctx.shadowBlur=0;
+    ctx.restore();
+
+    // thought bubble for thinking leaders / main
+    if((r.state==="think") && (r.lead||r.main)) drawThought(x, y-46*scale, scale);
+    if(!reduce && Math.random()<0.02) puff(x-6+Math.random()*12, y+24*scale, hexA(col,.5));
+  }
+
+  function drawEye(dx,dy,col,state,open){
+    ctx.save(); ctx.translate(dx,dy);
+    if(state==="fail"){ // ✕
+      ctx.strokeStyle=col; ctx.lineWidth=2.4;
+      ctx.beginPath();ctx.moveTo(-3,-3);ctx.lineTo(3,3);ctx.moveTo(3,-3);ctx.lineTo(-3,3);ctx.stroke();
+    } else if(state==="done"){ // ✓
+      ctx.strokeStyle=col; ctx.lineWidth=2.4;
+      ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(-1,3);ctx.lineTo(3,-3);ctx.stroke();
+    } else { // bar eyes (read/think)
+      const h=6*open+0.5;
+      ctx.fillStyle=col; rr(-2.4,-h/2,4.8,h,2.2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawThought(x,y,scale){
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle="rgba(245,232,210,.95)";
+    ctx.strokeStyle="rgba(0,0,0,.15)"; ctx.lineWidth=1;
+    [[0,0,15],[-13,4,8],[14,3,9]].forEach(([cx,cy,r])=>{
+      ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fill();ctx.stroke();
+    });
+    ctx.beginPath();ctx.arc(-2,18,4,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(-6,26,2.4,0,7);ctx.fill();
+    // gear glyph
+    drawGear(0,0,7,C.goldDeep,T*2);
+    ctx.restore();
+  }
+
+  function drawSiren(){
+    if(!siren) return;
+    const z=zoneByKey(siren.zone); const p=zonePos(z,1);
+    const pulse=(Math.sin(T*8)+1)/2;
+    ctx.save();
+    // beacon glow sweeping
+    ctx.beginPath(); ctx.ellipse(p.x,p.y,80,52,0,0,7);
+    ctx.fillStyle=hexA(C.danger,.10+pulse*0.16); ctx.fill();
+    // warning triangle floating above hub
+    const ty=p.y-86;
+    ctx.translate(p.x,ty);
+    ctx.shadowColor=C.danger; ctx.shadowBlur=14+pulse*14;
+    ctx.fillStyle=C.danger; ctx.beginPath();
+    ctx.moveTo(0,-13);ctx.lineTo(13,10);ctx.lineTo(-13,10);ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0; ctx.fillStyle="#1a1206"; ctx.font="700 16px Inter";
+    ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("!",0,1);
+    ctx.restore();
+  }
+
+  function drawArrows(){
+    for(const a of arrows){
+      const t=ease(a.t);
+      const cx=a.x0+(a.x1-a.x0)*t, cy=a.y0+(a.y1-a.y0)*t;
+      const ang=Math.atan2(a.y1-a.y0,a.x1-a.x0);
+      // trail
+      ctx.strokeStyle=hexA(a.col,.5*(1-a.t)); ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(a.x0,a.y0);ctx.lineTo(cx,cy);ctx.stroke();
+      // head
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+      ctx.fillStyle=a.col; ctx.shadowColor=a.col; ctx.shadowBlur=10;
+      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-6,-6);ctx.lineTo(-6,6);ctx.closePath();ctx.fill();
+      ctx.restore(); ctx.shadowBlur=0;
+    }
+  }
+
+  // worker placement around its zone hub
+  function robotSlot(r){
+    const z=zoneByKey(r.zone); const hub=zonePos(z,1);
+    if(r.lead) return {x:hub.x, y:hub.y+6};
+    const ring = Math.min(W,H)*0.085;
+    const a = z.ang + Math.PI + (r.idx)*0.9;
+    return {x:hub.x+Math.cos(a)*ring, y:hub.y+ring*0.55*Math.sin(a)+22};
+  }
+
+  // ---- utils ----
+  function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
+  function hexA(hex,a){const n=parseInt(hex.slice(1),16);
+    return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+  function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+  function stateColor(s){return s==="fail"?C.danger:s==="done"?C.ok:
+    s==="read"?C.info:C.gold;}
+
+  // ---- main loop ----
+  let T=0, last=performance.now();
+  function frame(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now; T+=dt;
+
+    // update robots blink/eye + occasional state drift
+    for(const r of robots){
+      r.blink-=dt;
+      if(r.blink<=0){ r.eye=0.15; r.blink=2+Math.random()*4; }
+      else r.eye+=(1-r.eye)*Math.min(1,dt*8);
+      if(r.state!=="fail" && Math.random()<0.003){
+        r.state = Math.random()<0.5?"read":(Math.random()<0.6?"think":"done");
+      }
+    }
+    // arrows
+    for(let i=arrows.length-1;i>=0;i--){
+      arrows[i].t+=dt*1.3; if(arrows[i].t>=1){ puff(arrows[i].x1,arrows[i].y1,arrows[i].col); arrows.splice(i,1);}
+    }
+    // siren timeout
+    if(siren){ siren.t+=dt; if(siren.t>6){
+      const w=robots.find(r=>r.zone===siren.zone&&r.state==="fail"); if(w)w.state="done";
+      siren=null; } }
+    // dust
+    for(let i=dust.length-1;i>=0;i--){const d=dust[i];d.x+=d.vx;d.y+=d.vy;d.life-=dt*1.4;
+      if(d.life<=0)dust.splice(i,1);}
+
+    // ---- render ----
+    drawFloor();
+    // tanks across the top
+    const tcols=[C.info,C.ops,C.exec,C.gold,C.info,C.ops];
+    const tn=Math.max(4,Math.floor(W/150));
+    for(let i=0;i<tn;i++) drawTank((i+0.5)*(W/tn), H*0.20, tcols[i%tcols.length], i*13);
+
+    zones.forEach(fillZone);
+    belts.forEach(drawBelt);
+    drawPodium();
+
+    // dust under
+    for(const d of dust){ctx.globalAlpha=d.life*.6;ctx.fillStyle=d.col;
+      ctx.beginPath();ctx.arc(d.x,d.y,2.2,0,7);ctx.fill();ctx.globalAlpha=1;}
+
+    // robots sorted by y for depth
+    robots.slice().sort((a,b)=>{
+      const pa=a.main?center().y:(a.zone?robotSlot(a).y:0);
+      const pb=b.main?center().y:(b.zone?robotSlot(b).y:0);
+      return pa-pb;
+    }).forEach(drawRobot);
+
+    drawArrows();
+    drawSiren();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---- interactions ----
+  document.getElementById("btnDelegate").onclick = delegate;
+  document.getElementById("btnSiren").onclick = fireSiren;
+
+  const dEl=document.getElementById("decision");
+  function openDecision(){ dEl.classList.add("show"); }
+  function closeDecision(){ dEl.classList.remove("show"); }
+  document.getElementById("btnDecision").onclick=openDecision;
+  dEl.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{ bumpLive(2); closeDecision(); });
+  addEventListener("keydown",e=>{
+    if(!dEl.classList.contains("show")) return;
+    if(e.key==="Enter"){ dEl.querySelector(".opt.default").click(); }
+    else if(/^[1-9]$/.test(e.key)){ const o=dEl.querySelector(`.opt[data-k="${e.key}"]`); if(o)o.click(); }
+    else if(e.key==="Escape"){ closeDecision(); }
+  });
+
+  // auto-demo trickle
+  if(!reduce){
+    setInterval(()=>{ if(Math.random()<0.6) delegate(); }, 3200);
+    setInterval(()=>bumpLive(1), 1500);
+  }
+})();
+</script>
+</body>
+</html>
